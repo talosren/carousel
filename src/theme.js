@@ -500,7 +500,7 @@ export const claudeTheme = {
   },
 };
 
-export const DEFAULT_THEMES = [notionTheme, midnightTheme];
+export const DEFAULT_THEMES = [notionTheme, midnightTheme, claudeTheme];
 
 // Back-compat: legacy imports of `theme` should still work (used by store v1
 // migration). Points at the Notion default.
