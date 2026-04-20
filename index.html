@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Carousel Builder</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="./dist/styles.css" />
+
+    <script type="module">
+      import html2canvas from 'https://esm.sh/html2canvas@1.4.1';
+      import JSZip from 'https://esm.sh/jszip@3.10.1';
+      window.__carouselDeps = { html2canvas, JSZip };
+      window.dispatchEvent(new CustomEvent('carousel-deps-ready'));
+    </script>
+  </head>
+  <body>
+    <main class="workbench">
+      <aside id="editor-slot"></aside>
+
+      <section id="preview" class="flex flex-col items-center w-full">
+        <div class="ig-frame" id="ig-frame">
+          <div id="ig-header-slot"></div>
+          <div class="carousel-viewport" id="viewport">
+            <div class="carousel-track" id="track"></div>
+          </div>
+          <div id="ig-actions-slot"></div>
+          <div id="ig-caption-slot"></div>
+        </div>
+        <div class="dots" id="dots"></div>
+      </section>
+    </main>
+
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,54 @@
+---
+alwaysApply: true
+---
+---
+description: Canonical visual design — colors, spacing, typography, components
+alwaysApply: true
+---
+
+# Design system reference
+
+**Source of truth:**
+- `docs/design.md` in the repo root  
+  (Notion-inspired tokens: warm neutrals, Notion Blue `#0075de`, 8px spacing base, typography scale, borders, shadows)
+
+**Architecture / product behavior reference:**
+- `docs/architecture.md` in the repo root  
+  (page structure, component systems, interaction patterns, layout logic, reusable UI flows, information architecture, feature relationships)
+
+When implementing or changing **UI** (Tailwind classes, layout, components, marketing pages, learn/admin shells):
+
+## Visual system rules
+
+1. **Consult `docs/design.md` first** before introducing new hex values, spacing rhythms, type scales, shadows, or border styles.
+2. **Prefer design tokens from the doc** (e.g. primary text `rgba(0,0,0,0.95)`, warm neutrals, `#0075de` for primary actions) over ad-hoc `slate-*` or one-off hex values unless mapped explicitly.
+3. **Spacing:** honor the **8px base unit** and spacing scale from the doc.
+4. **Borders / elevation:** use whisper-weight borders and restrained shadows from the doc rather than heavy outlines or aggressive shadows.
+5. **Typography:** follow the hierarchy and rhythm defined in the doc before inventing new text sizes.
+
+## Architecture / product rules
+
+6. **Consult `docs/architecture.md` before changing page structure or feature flows.**
+7. Use `docs/architecture.md` as the source of truth for:
+   - page hierarchy
+   - section ordering
+   - reusable component patterns
+   - user flows
+   - feature relationships
+   - modal / drawer / preview behavior
+   - dashboard shells
+   - content architecture
+8. Prefer extending existing systems documented in `docs/architecture.md` instead of creating one-off layouts or duplicate patterns.
+9. If building a new page, align it to established patterns in `docs/architecture.md`.
+
+## Conflict handling
+
+10. If `docs/design.md` conflicts with existing UI code, align new work with `docs/design.md`.
+11. If `docs/architecture.md` conflicts with existing page implementations, align new work with `docs/architecture.md`.
+12. Mention legacy cleanup as an optional follow-up rather than blocking implementation.
+
+## Default behavior
+
+When uncertain:
+- `docs/design.md` = how it should look
+- `docs/architecture.md` = how it should be structured / behave
