@@ -127,7 +127,7 @@ export function mountPanel(mountPoint) {
 function shell() {
   return `
     <div class="editor__head">
-      <h1>Carousel Builder</h1>
+      <h1><a href="https://drive.google.com/drive/folders/1213Ynl1zlnyAh_tl_SNH8in0stTxZiNg?usp=drive_link" target="_blank">Carousel Builder</a></h1>
       <p>Edit below. Autosaved to this browser.</p>
     </div>
     <div class="editor__body" id="editor-body"></div>
