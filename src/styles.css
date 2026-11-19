@@ -228,9 +228,7 @@ body {
     background: var(--card-rule);
   }
   .qcard__question {
-    flex: 0 1 auto;
-    min-height: 0;
-    overflow: hidden;
+    flex: none;
     margin: 4px 0 0;
     font-family: var(--body-font);
     font-weight: 500;
