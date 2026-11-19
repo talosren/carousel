@@ -299,11 +299,28 @@ body {
     height: 100%;
     object-fit: cover;
   }
-  .qcard__mark {
+  .qcard__mark,
+  .qcard__mark-handle {
+    position: absolute;
     z-index: 1;
-    inset: 0;
-    margin: auto;
+    transform: translate(-50%, -50%);
     object-fit: contain;
+  }
+  .qcard__mark {
+    pointer-events: none;
+  }
+  .qcard__mark-handle {
+    z-index: 6;
+    cursor: grab;
+    touch-action: none;
+    border: 1px dashed rgba(0, 0, 0, 0.45);
+    background: transparent;
+  }
+  .qcard__mark-handle.is-dragging {
+    cursor: grabbing;
+  }
+  .slide.is-exporting .qcard__mark-handle {
+    display: none !important;
   }
 
   /* Themes alias mode-specific tokens to the unified `--X` names that

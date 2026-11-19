@@ -12,6 +12,11 @@ function resolveRef(ref, ctx) {
   return resolved || image.remoteUrl || '';
 }
 
+function finite(value, fallback) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 function socialColor(slide, theme) {
   const mode = slide?.theme || 'light';
   return (
@@ -46,12 +51,16 @@ export function renderQuestionCard(slide, ctx) {
   const mark = resolveRef(card.watermark, ctx);
   const opacity = Math.min(1, Math.max(0, Number(card.watermark?.opacity ?? 0.06)));
   const markSize = Math.min(100, Math.max(20, Number(card.watermark?.size ?? 70)));
+  const markX = finite(card.watermark?.x, 50);
+  const markY = finite(card.watermark?.y, 50);
+  const box = `left:${markX}%;top:${markY}%;width:${markSize}%;height:${markSize}%`;
 
   const photoLayer = photo
     ? `<img class="qcard__photo" src="${escapeHtml(photo)}" alt="" />`
     : '';
   const markLayer = mark
-    ? `<img class="qcard__mark" src="${escapeHtml(mark)}" alt="" style="width:${markSize}%;height:${markSize}%;opacity:${opacity}" />`
+    ? `<img class="qcard__mark" src="${escapeHtml(mark)}" alt="" style="${box};opacity:${opacity}" />
+       <div class="qcard__mark-handle" data-watermark-handle data-x="${markX}" data-y="${markY}" style="${box}"></div>`
     : '';
 
   const color = socialColor(slide, ctx?.theme);

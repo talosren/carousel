@@ -392,7 +392,7 @@ function linkedinCardSection(theme) {
               ${card.watermark?.localId ? '' : 'disabled'}>Remove</button>
           </div>
           <p style="margin-top:4px;font-size:11px;color:var(--ink-muted);">
-            Stored in grayscale so the logo reads as a watermark on the card and in the export.
+            Stored in grayscale. Drag the dashed frame on the preview to place it. Anything outside the card is cropped in the post and the export.
           </p>
         </div>
         <div class="field__row">
@@ -407,6 +407,22 @@ function linkedinCardSection(theme) {
               value="${markSize}" ${card.watermark?.localId ? '' : 'disabled'} />
           </div>
         </div>
+        <div class="field__row">
+          <div class="field">
+            <label class="field__label">Watermark X (%)</label>
+            <input class="field__input" type="number" step="1" min="-200" max="300"
+              data-field="linkedin.watermark.x" value="${attr(Math.round(Number(card.watermark?.x ?? 50)))}"
+              ${card.watermark?.localId ? '' : 'disabled'} />
+          </div>
+          <div class="field">
+            <label class="field__label">Watermark Y (%)</label>
+            <input class="field__input" type="number" step="1" min="-200" max="300"
+              data-field="linkedin.watermark.y" value="${attr(Math.round(Number(card.watermark?.y ?? 50)))}"
+              ${card.watermark?.localId ? '' : 'disabled'} />
+          </div>
+        </div>
+        <button type="button" class="btn btn--ghost btn--small" data-action="linkedin-mark-center"
+          ${card.watermark?.localId ? '' : 'disabled'}>Center watermark</button>
         <div class="edit-section__title" style="margin-top:8px;">Socials</div>
         <div class="list-editor">
           ${rows}
@@ -1290,11 +1306,18 @@ function applyLinkedinField(field, value) {
     updateActiveTheme({ linkedin: { showChrome: !!value } });
     return;
   }
-  if (field === 'linkedin.watermark.opacity' || field === 'linkedin.watermark.size') {
+  if (
+    field === 'linkedin.watermark.opacity' ||
+    field === 'linkedin.watermark.size' ||
+    field === 'linkedin.watermark.x' ||
+    field === 'linkedin.watermark.y'
+  ) {
     if (!card.watermark) return;
     const watermark = { ...card.watermark };
     if (field.endsWith('opacity')) watermark.opacity = Math.min(0.4, Math.max(0, Number(value) / 100));
-    else watermark.size = Math.min(100, Math.max(20, Number(value) || 70));
+    else if (field.endsWith('size')) watermark.size = Math.min(100, Math.max(20, Number(value) || 70));
+    else if (field.endsWith('.x')) watermark.x = Math.min(300, Math.max(-200, Number(value) || 0));
+    else watermark.y = Math.min(300, Math.max(-200, Number(value) || 0));
     updateActiveTheme({ linkedin: { watermark } });
   }
 }
@@ -1330,7 +1353,14 @@ function openLinkedinAssetPicker(slot) {
       const { localId, remotePromise } = await ingestImage(stored);
       const previous = getState().themes.find((t) => t.id === themeId)?.linkedin?.[slot] ?? {};
       const next = slot === 'watermark'
-        ? { opacity: previous.opacity ?? 0.06, size: previous.size ?? 70, localId, remoteUrl: undefined }
+        ? {
+            opacity: previous.opacity ?? 0.06,
+            size: previous.size ?? 70,
+            x: previous.x ?? 50,
+            y: previous.y ?? 50,
+            localId,
+            remoteUrl: undefined,
+          }
         : { localId, remoteUrl: undefined };
       patchLinkedinOnTheme(themeId, { [slot]: next });
       dropImageIfUnused(prev);
@@ -1783,6 +1813,11 @@ function onClick(e) {
     case 'linkedin-mark-remove':
       clearLinkedinAsset('watermark');
       break;
+    case 'linkedin-mark-center': {
+      const mark = getActiveTheme().linkedin?.watermark;
+      if (mark) updateActiveTheme({ linkedin: { watermark: { ...mark, x: 50, y: 50 } } });
+      break;
+    }
     case 'social-add':
       addSocial({ icon: 'linkedin', text: '' });
       break;

@@ -302,7 +302,7 @@ Top to bottom, inside the same 4:5 frame:
 5. Horizontal rule.
 6. Socials block, centered in whatever space remains. Icons share one column and the labels share the other, so both stay aligned as rows are added.
 
-The card background is the slide background color. An optional photo covers it, and an optional logo is stored as a grayscale image and painted behind the text as a watermark. Progress bar and swipe arrow are hidden unless the theme's "Show progress bar and swipe arrow" option is on.
+The card background is the slide background color. An optional photo covers it, and an optional logo is stored as a grayscale image and painted behind the text as a watermark. Drag the dashed frame on the preview, or set X and Y as a percent of the card, to place that logo. The card clips anything outside its frame, including in the PNG export. Progress bar and swipe arrow are hidden unless the theme's "Show progress bar and swipe arrow" option is on.
 
 Colors for the label, rules, question, signature, and socials are the Question card tokens. They follow light, dark, and brand modes, and a single slide can override them.
 

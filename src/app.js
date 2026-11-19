@@ -8,6 +8,7 @@ import { applyTheme } from './theme.js';
 import {
   getState,
   getActiveTheme,
+  updateActiveTheme,
   initStore,
   subscribe as subscribeState,
   collectAllReferencedImageLocalIds,
@@ -92,6 +93,77 @@ function renderSlide(slide, index, total, ctx) {
 
 let carousel = null;
 
+function clampMarkPos(value) {
+  return Math.min(300, Math.max(-200, value));
+}
+
+// Drag the LinkedIn watermark by its editor frame. The slide clips overflow,
+// so the logo can sit partly outside the post and only the visible part exports.
+function attachWatermarkDrag(viewport) {
+  let drag = null;
+
+  function place(x, y) {
+    const left = `${x}%`;
+    const top = `${y}%`;
+    drag.handle.style.left = left;
+    drag.handle.style.top = top;
+    drag.handle.dataset.x = String(x);
+    drag.handle.dataset.y = String(y);
+    if (drag.mark) {
+      drag.mark.style.left = left;
+      drag.mark.style.top = top;
+    }
+  }
+
+  viewport.addEventListener('pointerdown', (e) => {
+    const handle = e.target.closest?.('[data-watermark-handle]');
+    if (!handle || !viewport.contains(handle)) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const slide = handle.closest('.slide');
+    drag = {
+      pointerId: e.pointerId,
+      handle,
+      mark: slide?.querySelector('.qcard__mark') ?? null,
+      rect: slide.getBoundingClientRect(),
+      startX: Number(handle.dataset.x) || 50,
+      startY: Number(handle.dataset.y) || 50,
+      originX: e.clientX,
+      originY: e.clientY,
+      moved: false,
+    };
+    handle.setPointerCapture?.(e.pointerId);
+    handle.classList.add('is-dragging');
+  }, true);
+
+  viewport.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const x = clampMarkPos(drag.startX + ((e.clientX - drag.originX) / drag.rect.width) * 100);
+    const y = clampMarkPos(drag.startY + ((e.clientY - drag.originY) / drag.rect.height) * 100);
+    place(x, y);
+    drag.moved = true;
+    drag.x = x;
+    drag.y = y;
+  }, true);
+
+  function finish(e) {
+    if (!drag || (e && e.pointerId !== drag.pointerId)) return;
+    const { handle, x, y, moved } = drag;
+    handle.classList.remove('is-dragging');
+    drag = null;
+    if (!moved || x == null || y == null) return;
+    const watermark = getActiveTheme()?.linkedin?.watermark;
+    if (!watermark) return;
+    updateActiveTheme({ linkedin: { watermark: { ...watermark, x, y } } });
+  }
+
+  viewport.addEventListener('pointerup', finish, true);
+  viewport.addEventListener('pointercancel', finish, true);
+}
+
 function rerenderCarousel({ header, actions, caption, track, dots, viewport }) {
   const state = getState();
   const theme = getActiveTheme();
@@ -138,6 +210,7 @@ async function mount() {
   await hydrateCache();
 
   mountPanel(editorSlot);
+  attachWatermarkDrag(viewport);
   attachViewportDropzone(viewport, () => getSelectedIndex());
   attachOnlineRetry();
 
