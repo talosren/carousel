@@ -15,7 +15,13 @@
 // ---------------------------------------------------------------------------
 
 import { slides as DEFAULT_SLIDES } from './data/slides.js';
-import { DEFAULT_THEMES, notionTheme, blankTokens, TOKEN_KEYS } from './theme.js';
+import {
+  DEFAULT_THEMES,
+  notionTheme,
+  linkedinTheme,
+  blankTokens,
+  TOKEN_KEYS,
+} from './theme.js';
 import { putImage, deleteImage } from './editor/imageStore.js';
 
 const STORAGE_KEY = 'carousel.state.v2';
@@ -25,6 +31,7 @@ function makeInitialState() {
   return {
     version: 2,
     themes: deepClone(DEFAULT_THEMES),
+    seededThemeIds: ['theme-linkedin'],
     activeThemeId: notionTheme.id,
     slides: deepClone(DEFAULT_SLIDES).map(normaliseSlide),
   };
@@ -353,16 +360,14 @@ export function renameTheme(id, name) {
 export function deleteTheme(id) {
   if (state.themes.length <= 1) return;
   const removed = state.themes.find((t) => t.id === id);
-  const avatarId = removed?.brand?.avatarLocalId;
-  const stillUsed =
-    avatarId &&
-    state.themes.some(
-      (t) => t.id !== id && t.brand?.avatarLocalId === avatarId
-    );
-  if (avatarId && !stillUsed) deleteImage(avatarId).catch(() => {});
+  const removedIds = collectThemeImageIds(removed);
   state.themes = state.themes.filter((t) => t.id !== id);
   if (state.activeThemeId === id) {
     state.activeThemeId = state.themes[0].id;
+  }
+  const still = collectAllReferencedImageLocalIds(state);
+  for (const imgId of removedIds) {
+    if (!still.has(imgId)) deleteImage(imgId).catch(() => {});
   }
   commit();
 }
@@ -376,6 +381,7 @@ export function updateActiveTheme(patch) {
     if (patch.caption) next.caption = { ...(t.caption ?? {}), ...patch.caption };
     if (patch.colors) next.colors = { ...t.colors, ...patch.colors };
     if (patch.fonts) next.fonts = { ...t.fonts, ...patch.fonts };
+    if (patch.linkedin) next.linkedin = { ...(t.linkedin ?? {}), ...patch.linkedin };
     if (patch.name !== undefined) next.name = patch.name;
     return next;
   });
@@ -436,6 +442,68 @@ export function updateCaption(patch) {
   updateActiveTheme({ caption: patch });
 }
 
+// ------------------------- LinkedIn socials --------------------------------
+
+export function patchLinkedinOnTheme(themeId, patch) {
+  state.themes = state.themes.map((t) => {
+    if (t.id !== themeId) return t;
+    return { ...t, linkedin: { ...(t.linkedin ?? {}), ...patch } };
+  });
+  commit();
+}
+
+export function patchSocialOnTheme(themeId, socialId, patch) {
+  state.themes = state.themes.map((t) => {
+    if (t.id !== themeId) return t;
+    const socials = (t.linkedin?.socials ?? []).map((s) =>
+      s.id === socialId ? { ...s, ...patch } : s
+    );
+    return { ...t, linkedin: { ...(t.linkedin ?? {}), socials } };
+  });
+  commit();
+}
+
+export function addSocial(social, atIndex) {
+  const list = [...(getActiveTheme().linkedin?.socials ?? [])];
+  const item = {
+    icon: 'website',
+    text: '',
+    ...(social ?? {}),
+    id: social?.id ?? uuid(),
+  };
+  const at = clampInsert(atIndex, list.length);
+  list.splice(at, 0, item);
+  updateActiveTheme({ linkedin: { socials: list } });
+  return item.id;
+}
+
+export function updateSocial(id, patch) {
+  const list = (getActiveTheme().linkedin?.socials ?? []).map((s) =>
+    s.id === id ? { ...s, ...patch } : s
+  );
+  updateActiveTheme({ linkedin: { socials: list } });
+}
+
+export function moveSocial(id, direction) {
+  const list = [...(getActiveTheme().linkedin?.socials ?? [])];
+  const from = list.findIndex((s) => s.id === id);
+  const to = from + direction;
+  if (from < 0 || to < 0 || to >= list.length) return;
+  [list[from], list[to]] = [list[to], list[from]];
+  updateActiveTheme({ linkedin: { socials: list } });
+}
+
+export function removeSocial(id) {
+  const current = getActiveTheme().linkedin?.socials ?? [];
+  const removed = current.find((s) => s.id === id);
+  const list = current.filter((s) => s.id !== id);
+  updateActiveTheme({ linkedin: { socials: list } });
+  const localId = removed?.iconLocalId;
+  if (localId && !collectAllReferencedImageLocalIds(getState()).has(localId)) {
+    deleteImage(localId).catch(() => {});
+  }
+}
+
 export function updateColors(patch) {
   updateActiveTheme({ colors: patch });
 }
@@ -451,8 +519,9 @@ export function resetDefaults() {
     }
   }
   for (const t of state.themes) {
-    const bid = t.brand?.avatarLocalId;
-    if (bid) deleteImage(bid).catch(() => {});
+    for (const imgId of collectThemeImageIds(t)) {
+      deleteImage(imgId).catch(() => {});
+    }
   }
   state = makeInitialState();
   commit();
@@ -484,8 +553,22 @@ export function collectAllReferencedImageLocalIds(state) {
   }
   if (Array.isArray(state?.themes)) {
     for (const t of state.themes) {
-      const bid = t.brand?.avatarLocalId;
-      if (bid) ids.add(bid);
+      for (const imgId of collectThemeImageIds(t)) ids.add(imgId);
+    }
+  }
+  return ids;
+}
+
+/** IndexedDB ids owned by a theme: avatar, card background, watermark, social icons. */
+export function collectThemeImageIds(theme) {
+  const ids = [];
+  if (theme?.brand?.avatarLocalId) ids.push(theme.brand.avatarLocalId);
+  const card = theme?.linkedin;
+  if (card?.background?.localId) ids.push(card.background.localId);
+  if (card?.watermark?.localId) ids.push(card.watermark.localId);
+  if (Array.isArray(card?.socials)) {
+    for (const social of card.socials) {
+      if (social?.iconLocalId) ids.push(social.iconLocalId);
     }
   }
   return ids;
@@ -558,9 +641,20 @@ function normaliseState(s) {
   const normalised = {
     version: 2,
     themes: Array.isArray(s.themes) && s.themes.length ? s.themes : deepClone(DEFAULT_THEMES),
+    seededThemeIds: Array.isArray(s.seededThemeIds) ? [...s.seededThemeIds] : [],
     activeThemeId: s.activeThemeId,
     slides: Array.isArray(s.slides) ? s.slides.map(normaliseSlide) : makeInitialState().slides,
   };
+  // Older saved states predate the LinkedIn theme. Add it once, then remember
+  // that we did so the user can delete it without it coming back.
+  const alreadySeeded = normalised.seededThemeIds.includes(linkedinTheme.id);
+  const hasLinkedin = normalised.themes.some((t) => t.id === linkedinTheme.id);
+  if (!alreadySeeded && !hasLinkedin) {
+    normalised.themes = [...normalised.themes, deepClone(linkedinTheme)];
+  }
+  if (!normalised.seededThemeIds.includes(linkedinTheme.id)) {
+    normalised.seededThemeIds.push(linkedinTheme.id);
+  }
   if (!normalised.themes.some((t) => t.id === normalised.activeThemeId)) {
     normalised.activeThemeId = normalised.themes[0].id;
   }
@@ -759,6 +853,17 @@ function blankSlide(type) {
         body: '',
         watermark: true,
         cta: { text: 'Get started \u2192', href: '#' },
+      };
+    case 'question':
+      return {
+        ...base,
+        theme: 'light',
+        tag: '',
+        heading: '',
+        body: '',
+        questionLabel: '',
+        question:
+          'Two kids open lemonade stands. One sells lemonade for $1. The other sells AI-powered lemonade with unlimited custom prompts for $2, or contact us for an enterprise plan. Which is more likely to get acquired by a PE-backed roll-up \u201cdisrupting the lemon industry\u201d and which stand will pivot to hardtech?',
       };
     default:
       return base;

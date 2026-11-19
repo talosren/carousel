@@ -32,6 +32,13 @@ import {
   updateBrand,
   updateCaption,
   updateColors,
+  addSocial,
+  updateSocial,
+  moveSocial,
+  removeSocial,
+  patchLinkedinOnTheme,
+  patchSocialOnTheme,
+  collectAllReferencedImageLocalIds,
   updateActiveTheme,
   updateActiveTokens,
   setActiveTheme,
@@ -64,6 +71,8 @@ import { isImageFile, uploadToTmpfiles, ingestImage } from './upload.js';
 import { getImage, deleteImage } from './imageStore.js';
 import { getCachedUrl } from './imageCache.js';
 import { exportSlidePng, exportAllZip } from './export.js';
+import { toGrayscaleBlob } from './grayscale.js';
+import { SOCIAL_ICON_OPTIONS } from '../components/socialIcons.js';
 
 const SLIDE_TYPES = [
   'hero',
@@ -74,6 +83,7 @@ const SLIDE_TYPES = [
   'howto',
   'quote',
   'cta',
+  'question',
 ];
 
 // Transient UI state (never persisted).
@@ -288,6 +298,8 @@ function activeThemeSection(theme) {
         </div>
       </details>
 
+      ${theme.layout === 'linkedin' ? linkedinCardSection(theme) : ''}
+
       <details class="disclosure" data-disclosure-id="theme:element-colors"
         ${discOpen('theme:element-colors', true) ? 'open' : ''}>
         <summary>Element colors (per mode)</summary>
@@ -297,6 +309,111 @@ function activeThemeSection(theme) {
         </div>
       </details>
     </section>
+  `;
+}
+
+function linkedinCardSection(theme) {
+  const card = theme.linkedin ?? {};
+  const opacity = Math.round(Number(card.watermark?.opacity ?? 0.06) * 100);
+  const markSize = Number(card.watermark?.size ?? 70);
+  const socials = Array.isArray(card.socials) ? card.socials : [];
+  const iconOptions = (selected) =>
+    SOCIAL_ICON_OPTIONS.map(
+      ([value, label]) =>
+        `<option value="${value}"${value === selected ? ' selected' : ''}>${escape(label)}</option>`
+    ).join('');
+  const rows = socials
+    .map((social, index) => {
+      const id = attr(social.id);
+      return `
+        <div class="list-editor__row" style="grid-template-columns:1fr auto;">
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;">
+            <select class="field__select" data-field="social.icon" data-social="${id}">
+              ${iconOptions(social.icon || 'website')}
+            </select>
+            <input class="field__input" type="text" placeholder="Handle or website"
+              data-field="social.text" data-social="${id}" value="${attr(social.text)}" />
+            ${
+              social.icon === 'custom'
+                ? `<button type="button" class="btn btn--secondary btn--small" data-action="social-icon-pick" data-social="${id}">${social.iconLocalId ? 'Replace icon' : 'Upload icon'}</button>`
+                : ''
+            }
+          </div>
+          <div class="slide-card__actions">
+            <button class="icon-btn" data-action="social-up" data-social="${id}" ${index === 0 ? 'disabled' : ''} title="Move up">↑</button>
+            <button class="icon-btn" data-action="social-down" data-social="${id}" ${index === socials.length - 1 ? 'disabled' : ''} title="Move down">↓</button>
+            <button class="icon-btn" data-action="social-remove" data-social="${id}" title="Remove">×</button>
+          </div>
+        </div>
+      `;
+    })
+    .join('');
+  return `
+    <details class="disclosure" data-disclosure-id="theme:question-card"
+      ${discOpen('theme:question-card', true) ? 'open' : ''}>
+      <summary>Question card</summary>
+      <div class="disclosure__body">
+        <div class="field">
+          <label class="field__label">Header label</label>
+          <input class="field__input" type="text" data-field="linkedin.label" value="${attr(card.label)}" />
+        </div>
+        <div class="field">
+          <label class="field__label">Signature</label>
+          <input class="field__input" type="text" data-field="linkedin.signature" value="${attr(card.signature)}" />
+        </div>
+        <div class="field">
+          <label class="field__label">Question text size (${attr(card.questionSize ?? 15)}px)</label>
+          <input class="field__input" type="number" min="10" max="32" step="1"
+            data-field="linkedin.questionSize" value="${attr(card.questionSize ?? 15)}" />
+        </div>
+        <div class="field">
+          <label class="field__label" style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" data-field="linkedin.showChrome" ${card.showChrome ? 'checked' : ''} />
+            Show progress bar and swipe arrow
+          </label>
+        </div>
+        <div class="field">
+          <label class="field__label">Background photo</label>
+          <div class="field__row">
+            <button type="button" class="btn btn--secondary btn--small" data-action="linkedin-bg-pick">
+              ${card.background?.localId ? 'Replace photo' : 'Add photo'}
+            </button>
+            <button type="button" class="btn btn--ghost btn--small" data-action="linkedin-bg-remove"
+              ${card.background?.localId ? '' : 'disabled'}>Remove</button>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field__label">Logo watermark</label>
+          <div class="field__row">
+            <button type="button" class="btn btn--secondary btn--small" data-action="linkedin-mark-pick">
+              ${card.watermark?.localId ? 'Replace logo' : 'Add logo'}
+            </button>
+            <button type="button" class="btn btn--ghost btn--small" data-action="linkedin-mark-remove"
+              ${card.watermark?.localId ? '' : 'disabled'}>Remove</button>
+          </div>
+          <p style="margin-top:4px;font-size:11px;color:var(--ink-muted);">
+            Stored in grayscale so the logo reads as a watermark on the card and in the export.
+          </p>
+        </div>
+        <div class="field__row">
+          <div class="field">
+            <label class="field__label">Watermark opacity (${opacity}%)</label>
+            <input type="range" min="0" max="40" step="1" data-field="linkedin.watermark.opacity"
+              value="${opacity}" ${card.watermark?.localId ? '' : 'disabled'} />
+          </div>
+          <div class="field">
+            <label class="field__label">Watermark size (${markSize}%)</label>
+            <input type="range" min="20" max="100" step="1" data-field="linkedin.watermark.size"
+              value="${markSize}" ${card.watermark?.localId ? '' : 'disabled'} />
+          </div>
+        </div>
+        <div class="edit-section__title" style="margin-top:8px;">Socials</div>
+        <div class="list-editor">
+          ${rows}
+          <button class="btn btn--ghost btn--small" data-action="social-add" type="button">+ Add social</button>
+        </div>
+      </div>
+    </details>
   `;
 }
 
@@ -313,9 +430,16 @@ function tokenTabs() {
   `;
 }
 
+function groupsFor(theme) {
+  if (theme?.layout === 'linkedin') {
+    return TOKEN_GROUPS.filter((group) => group.label === 'Question card');
+  }
+  return TOKEN_GROUPS.filter((group) => group.label !== 'Question card');
+}
+
 function tokenEditor(theme, mode) {
   const tokens = theme.tokens?.[mode] ?? {};
-  return TOKEN_GROUPS.map(
+  return groupsFor(theme).map(
     (group) => `
       <div class="edit-section__title" style="margin-top:6px;">${group.label}</div>
       <div class="token-grid">
@@ -408,7 +532,7 @@ function slideListSection(state, selectedIndex) {
   const rows = state.slides
     .map((s, i) => {
       const active = i === selectedIndex ? ' is-active' : '';
-      const title = s.heading || s.text || `Slide ${i + 1}`;
+      const title = s.question || s.heading || s.text || `Slide ${i + 1}`;
       return `
         <div class="slide-card${active}" data-action="select-slide" data-index="${i}">
           <span class="slide-card__index">${i + 1}</span>
@@ -435,7 +559,7 @@ function slideListSection(state, selectedIndex) {
       <div class="slide-list">${rows}</div>
       <div class="add-slide">
         <select class="field__select" id="add-slide-type">
-          ${SLIDE_TYPES.map(
+          ${(getActiveTheme()?.layout === 'linkedin' ? ['question'] : SLIDE_TYPES).map(
             (t) => `<option value="${t}">Add ${t}</option>`
           ).join('')}
         </select>
@@ -450,15 +574,52 @@ function slideListSection(state, selectedIndex) {
 function selectedSlideSection(state, selectedIndex) {
   const slide = state.slides[selectedIndex];
   if (!slide) return '';
+  const linkedin = getActiveTheme()?.layout === 'linkedin';
+  const label = linkedin ? 'question' : slide.type;
   return `
     <section class="edit-section">
-      <div class="edit-section__title">Slide ${selectedIndex + 1} — ${escape(slide.type)}</div>
-      ${typeAndTheme(slide, selectedIndex)}
-      ${textFields(slide, selectedIndex)}
-      ${overrideColorsBlock(slide, selectedIndex)}
-      ${typeSpecificFields(slide, selectedIndex)}
-      ${imageBlock(slide, selectedIndex)}
+      <div class="edit-section__title">Slide ${selectedIndex + 1} — ${escape(label)}</div>
+      ${
+        linkedin
+          ? `${linkedinSlideFields(slide, selectedIndex)}${overrideColorsBlock(slide, selectedIndex)}`
+          : `${typeAndTheme(slide, selectedIndex)}${textFields(slide, selectedIndex)}${overrideColorsBlock(slide, selectedIndex)}${typeSpecificFields(slide, selectedIndex)}${imageBlock(slide, selectedIndex)}`
+      }
     </section>
+  `;
+}
+
+function linkedinSlideFields(slide, i) {
+  const themes = ['light', 'dark', 'brand'];
+  return `
+    <div class="field">
+      <label class="field__label">Theme mode</label>
+      <div class="chip-group">
+        ${themes
+          .map(
+            (t) => `
+              <label>
+                <input type="radio" name="theme-${i}" value="${t}"
+                  data-field="slide.theme" data-index="${i}"
+                  ${slide.theme === t ? 'checked' : ''} />
+                <span>${t}</span>
+              </label>
+            `
+          )
+          .join('')}
+      </div>
+    </div>
+    <div class="field">
+      <label class="field__label">Header label</label>
+      <input class="field__input" type="text"
+        data-field="slide.questionLabel" data-index="${i}"
+        placeholder="Uses the theme label when empty"
+        value="${attr(slide.questionLabel)}" />
+    </div>
+    <div class="field">
+      <label class="field__label">Question</label>
+      <textarea class="field__textarea" rows="8"
+        data-field="slide.question" data-index="${i}">${attr(slide.question != null ? slide.question : (slide.heading ?? ''))}</textarea>
+    </div>
   `;
 }
 
@@ -528,7 +689,7 @@ function overrideColorsBlock(slide, i) {
         <p class="dropzone__hint" style="margin:0 0 8px;text-align:left;">
           Leave blank to inherit the theme. A value here wins over the theme.
         </p>
-        ${TOKEN_GROUPS.map(
+        ${groupsFor(getActiveTheme()).map(
           (group) => `
             <div class="edit-section__title" style="margin-top:6px;">${group.label}</div>
             <div class="token-grid">
@@ -1110,6 +1271,120 @@ function openStepImagePicker(slideIndex, stepId) {
   input.click();
 }
 
+function applyLinkedinField(field, value) {
+  const card = getActiveTheme().linkedin ?? {};
+  if (field === 'linkedin.label') {
+    updateActiveTheme({ linkedin: { label: value } });
+    return;
+  }
+  if (field === 'linkedin.signature') {
+    updateActiveTheme({ linkedin: { signature: value } });
+    return;
+  }
+  if (field === 'linkedin.questionSize') {
+    const size = Math.min(32, Math.max(10, Number(value) || 15));
+    updateActiveTheme({ linkedin: { questionSize: size } });
+    return;
+  }
+  if (field === 'linkedin.showChrome') {
+    updateActiveTheme({ linkedin: { showChrome: !!value } });
+    return;
+  }
+  if (field === 'linkedin.watermark.opacity' || field === 'linkedin.watermark.size') {
+    if (!card.watermark) return;
+    const watermark = { ...card.watermark };
+    if (field.endsWith('opacity')) watermark.opacity = Math.min(0.4, Math.max(0, Number(value) / 100));
+    else watermark.size = Math.min(100, Math.max(20, Number(value) || 70));
+    updateActiveTheme({ linkedin: { watermark } });
+  }
+}
+
+function dropImageIfUnused(localId) {
+  if (!localId) return;
+  if (!collectAllReferencedImageLocalIds(getState()).has(localId)) {
+    deleteImage(localId).catch(() => {});
+  }
+}
+
+function clearLinkedinAsset(slot) {
+  const card = getActiveTheme().linkedin ?? {};
+  const prev = card[slot]?.localId;
+  updateActiveTheme({ linkedin: { [slot]: null } });
+  dropImageIfUnused(prev);
+}
+
+function openLinkedinAssetPicker(slot) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.addEventListener('change', async () => {
+    const file = input.files?.[0];
+    input.remove();
+    if (!file || !isImageFile(file)) return;
+    const themeId = getState().activeThemeId;
+    const prev = getActiveTheme().linkedin?.[slot]?.localId;
+    try {
+      const stored = slot === 'watermark'
+        ? new File([await toGrayscaleBlob(file)], 'watermark.png', { type: 'image/png' })
+        : file;
+      const { localId, remotePromise } = await ingestImage(stored);
+      const previous = getState().themes.find((t) => t.id === themeId)?.linkedin?.[slot] ?? {};
+      const next = slot === 'watermark'
+        ? { opacity: previous.opacity ?? 0.06, size: previous.size ?? 70, localId, remoteUrl: undefined }
+        : { localId, remoteUrl: undefined };
+      patchLinkedinOnTheme(themeId, { [slot]: next });
+      dropImageIfUnused(prev);
+      const result = await remotePromise;
+      if (result?.url) {
+        const current = getState().themes.find((t) => t.id === themeId)?.linkedin?.[slot];
+        if (current?.localId === localId) {
+          patchLinkedinOnTheme(themeId, { [slot]: { ...current, remoteUrl: result.url } });
+        }
+      }
+    } catch (err) {
+      console.warn('[linkedin asset]', err);
+      toast('Could not add that image');
+    }
+  });
+  input.click();
+}
+
+function openSocialIconPicker(socialId) {
+  if (!socialId) return;
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.addEventListener('change', async () => {
+    const file = input.files?.[0];
+    input.remove();
+    if (!file || !isImageFile(file)) return;
+    const themeId = getState().activeThemeId;
+    const prev = getActiveTheme().linkedin?.socials?.find((s) => s.id === socialId)?.iconLocalId;
+    try {
+      const { localId, remotePromise } = await ingestImage(file);
+      patchSocialOnTheme(themeId, socialId, {
+        icon: 'custom',
+        iconLocalId: localId,
+        iconRemoteUrl: undefined,
+      });
+      dropImageIfUnused(prev);
+      const result = await remotePromise;
+      if (result?.url) {
+        const still = getState().themes
+          .find((t) => t.id === themeId)
+          ?.linkedin?.socials?.find((s) => s.id === socialId);
+        if (still?.iconLocalId === localId) {
+          patchSocialOnTheme(themeId, socialId, { iconRemoteUrl: result.url });
+        }
+      }
+    } catch (err) {
+      console.warn('[social icon]', err);
+      toast('Could not add that icon');
+    }
+  });
+  input.click();
+}
+
 function openBrandAvatarPicker() {
   const input = document.createElement('input');
   input.type = 'file';
@@ -1193,7 +1468,7 @@ function onInput(e) {
   // open, and each commit re-renders the editor which replaces this DOM node
   // and tears down the picker. Only commit on `change` (fired when the
   // picker closes) so dragging through the color wheel doesn't snap-commit.
-  if (el.type === 'color' && e.type === 'input') return;
+  if ((el.type === 'color' || el.type === 'range') && e.type === 'input') return;
 
   // Font-family picker: select between presets and a 'Custom…' free-text mode.
   const fontSlot = el.dataset?.fontPicker;
@@ -1239,6 +1514,16 @@ function onInput(e) {
   // Theme name.
   if (field === 'theme.name') {
     updateActiveTheme({ name: value });
+    return;
+  }
+
+  if (field.startsWith('linkedin.')) {
+    applyLinkedinField(field, value);
+    return;
+  }
+  if (field === 'social.icon' || field === 'social.text') {
+    const socialId = el.dataset.social;
+    if (socialId) updateSocial(socialId, { [field.slice('social.'.length)]: value });
     return;
   }
 
@@ -1486,6 +1771,34 @@ function onClick(e) {
       );
       break;
 
+    case 'linkedin-bg-pick':
+      openLinkedinAssetPicker('background');
+      break;
+    case 'linkedin-bg-remove':
+      clearLinkedinAsset('background');
+      break;
+    case 'linkedin-mark-pick':
+      openLinkedinAssetPicker('watermark');
+      break;
+    case 'linkedin-mark-remove':
+      clearLinkedinAsset('watermark');
+      break;
+    case 'social-add':
+      addSocial({ icon: 'linkedin', text: '' });
+      break;
+    case 'social-up':
+      moveSocial(actionable.dataset.social, -1);
+      break;
+    case 'social-down':
+      moveSocial(actionable.dataset.social, 1);
+      break;
+    case 'social-remove':
+      removeSocial(actionable.dataset.social);
+      break;
+    case 'social-icon-pick':
+      openSocialIconPicker(actionable.dataset.social);
+      break;
+
     case 'brand-avatar-pick':
       openBrandAvatarPicker();
       break;
@@ -1558,7 +1871,9 @@ function applySlidePath(index, path, value) {
     path === 'tag' ||
     path === 'heading' ||
     path === 'body' ||
-    path === 'text'
+    path === 'text' ||
+    path === 'question' ||
+    path === 'questionLabel'
   ) {
     updateSlide(index, { [path]: value });
     return;

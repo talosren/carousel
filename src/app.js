@@ -35,6 +35,7 @@ import { renderDetails } from './components/details.js';
 import { renderHowto } from './components/howto.js';
 import { renderQuote } from './components/quote.js';
 import { renderCta } from './components/cta.js';
+import { renderQuestionCard } from './components/questionCard.js';
 
 import { mountPanel } from './editor/panel.js';
 import { attachViewportDropzone, attachOnlineRetry } from './editor/dropzone.js';
@@ -49,6 +50,7 @@ const RENDERERS = {
   howto: renderHowto,
   quote: renderQuote,
   cta: renderCta,
+  question: renderQuestionCard,
 };
 
 const CENTERED_TYPES = new Set(['hero', 'cta', 'quote', 'solution']);
@@ -62,14 +64,19 @@ function resolveImage(image) {
 }
 
 function renderSlide(slide, index, total, ctx) {
-  const renderer = RENDERERS[slide.type] ?? renderFeatures;
+  const linkedin = ctx.theme?.layout === 'linkedin';
+  const renderer = linkedin
+    ? renderQuestionCard
+    : (RENDERERS[slide.type] ?? renderFeatures);
   const body = renderer(slide, ctx);
   const isLast = index === total - 1;
-  const centered = CENTERED_TYPES.has(slide.type);
+  const centered = !linkedin && CENTERED_TYPES.has(slide.type);
+  const showChrome = linkedin ? ctx.theme.linkedin?.showChrome === true : true;
   const classes = [
     'slide',
     `slide--${slide.theme ?? 'light'}`,
     centered ? 'slide--center' : '',
+    linkedin ? 'slide--card' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -77,8 +84,8 @@ function renderSlide(slide, index, total, ctx) {
   return `
     <article class="${classes}" data-slide-index="${index}" ${overrides}>
       ${body}
-      ${isLast ? '' : swipeArrow(slide.theme ?? 'light')}
-      ${progressBar(index, total, slide.theme ?? 'light')}
+      ${showChrome && !isLast ? swipeArrow(slide.theme ?? 'light') : ''}
+      ${showChrome ? progressBar(index, total, slide.theme ?? 'light') : ''}
     </article>
   `;
 }

@@ -48,6 +48,11 @@ export const TOKEN_KEYS = [
   "promptText",
   "mediaBorder",
   "mediaBg",
+  "cardLabel",
+  "cardRule",
+  "cardQuestion",
+  "cardSignature",
+  "cardSocial",
 ];
 
 // UI groups for the editor panel. Keeping this near the token list keeps
@@ -94,6 +99,17 @@ export const TOKEN_GROUPS = [
       "mediaBg",
     ],
   },
+  {
+    label: "Question card",
+    keys: [
+      "slideBg",
+      "cardLabel",
+      "cardRule",
+      "cardQuestion",
+      "cardSignature",
+      "cardSocial",
+    ],
+  },
 ];
 
 export const TOKEN_LABELS = {
@@ -127,6 +143,11 @@ export const TOKEN_LABELS = {
   promptText: "Prompt text",
   mediaBorder: "Media border",
   mediaBg: "Media background",
+  cardLabel: "Header label",
+  cardRule: "Divider lines",
+  cardQuestion: "Question text",
+  cardSignature: "Signature",
+  cardSocial: "Socials",
 };
 
 export const TOKEN_MODES = ["light", "dark", "brand"];
@@ -500,7 +521,89 @@ export const claudeTheme = {
   },
 };
 
-export const DEFAULT_THEMES = [notionTheme, midnightTheme, claudeTheme];
+const linkedinLight = {
+  ...notionLight,
+  tagColor: "#111111",
+  headingColor: "#111111",
+  bodyColor: "#111111",
+  slideBg: "#ffffff",
+  watermarkColor: "#111111",
+  cardLabel: "#111111",
+  cardRule: "#111111",
+  cardQuestion: "#111111",
+  cardSignature: "#111111",
+  cardSocial: "#111111",
+};
+
+const linkedinDark = {
+  ...notionDark,
+  slideBg: "#111111",
+  cardLabel: "#ffffff",
+  cardRule: "#ffffff",
+  cardQuestion: "#ffffff",
+  cardSignature: "#ffffff",
+  cardSocial: "#ffffff",
+};
+
+const linkedinBrand = {
+  ...notionBrand,
+  slideBg: "#0a66c2",
+  cardLabel: "#ffffff",
+  cardRule: "#ffffff",
+  cardQuestion: "#ffffff",
+  cardSignature: "#ffffff",
+  cardSocial: "#ffffff",
+};
+
+export const linkedinTheme = {
+  id: "theme-linkedin",
+  name: "LinkedIn",
+  layout: "linkedin",
+  brand: {
+    name: "",
+    handle: "",
+    subtitle: "",
+    initials: "",
+    icon: null,
+  },
+  caption: {
+    text: "",
+    meta: "",
+  },
+  linkedin: {
+    label: "Interview Question",
+    signature: "/ PH",
+    questionSize: 15,
+    showChrome: false,
+    background: null,
+    watermark: null,
+    socials: [],
+  },
+  colors: {
+    primary: "#0a66c2",
+    primaryDark: "#004182",
+    navy: "#0a66c2",
+    light: "#ffffff",
+    dark: "#111111",
+    ink: "#111111",
+    inkMuted: "#444444",
+    inkFaint: "#888888",
+    gradientFrom: "#0a66c2",
+    gradientTo: "#004182",
+    whisper: "rgba(0,0,0,0.1)",
+  },
+  tokens: {
+    light: { ...linkedinLight },
+    dark: { ...linkedinDark },
+    brand: { ...linkedinBrand },
+  },
+  fonts: {
+    display: "'Inter', -apple-system, system-ui, 'Segoe UI', Helvetica, Arial, sans-serif",
+    body: "'Inter', -apple-system, system-ui, 'Segoe UI', Helvetica, Arial, sans-serif",
+  },
+};
+
+export const DEFAULT_THEMES = [notionTheme, midnightTheme, claudeTheme, linkedinTheme];
 
 // Back-compat: legacy imports of `theme` should still work (used by store v1
 // migration). Points at the Notion default.

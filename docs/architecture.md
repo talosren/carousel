@@ -289,6 +289,25 @@ asyncio.run(export_slides())
 
 ---
 
+## LinkedIn question card
+
+The LinkedIn theme (`layout: 'linkedin'`) draws every slide as one interview-question card. Switching back to another theme restores that slide's normal layout. The slides themselves are not rewritten.
+
+Top to bottom, inside the same 4:5 frame:
+
+1. Header label. The theme default is "Interview Question". A slide can override it (for example "Jefferies 2026 Superday Interview Question").
+2. Horizontal rule.
+3. Question text. It grows with the copy and pushes the signature and socials down. A theme control sets the question size when a long question would crowd the footer.
+4. Right-aligned signature, theme-wide (default "/ PH").
+5. Horizontal rule.
+6. Socials block, centered in whatever space remains. Icons share one column and the labels share the other, so both stay aligned as rows are added.
+
+The card background is the slide background color. An optional photo covers it, and an optional logo is stored as a grayscale image and painted behind the text as a watermark. Progress bar and swipe arrow are hidden unless the theme's "Show progress bar and swipe arrow" option is on.
+
+Colors for the label, rules, question, signature, and socials are the Question card tokens. They follow light, dark, and brand modes, and a single slide can override them.
+
+---
+
 ## Layout Best Practices
 
 1. **Content must never overlap the progress bar.** Use `padding-bottom: 52px` on any slide content that extends to the bottom.
